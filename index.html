@@ -24,8 +24,23 @@
         this.paper = paper;
         var renderEvent = new CustomEvent("Render", {"detail":{"hazcheeseburger":true}});
         
-        this.Number = function(paper, x, y, number){
-          this.group = paper.group();
+        var Number = this.Number = function(number){
+          //this.group = paper.group();
+          var sircles = [];
+          var position = {
+            x: 100,
+            y: 100
+          };
+          var radius = 50, width = radius*2;
+          var rows = Math.ceil(Math.sqrt(number));
+          var quarterPi = Math.PI/4;
+          for (var i = 0; i < number; i++) {
+            var x = position.x + (i%rows)*width;
+            var y = position.y + Math.floor(i/rows)*width;
+            //var x = position.x + Math.sin((2*i+1)*quarterPi)*radius*Math.floor(i/4);
+            //var y = position.y + Math.cos((2*i+1)*quarterPi)*radius*Math.floor(i/4);
+            sircles.push(new Sircle(x, y, radius));
+          }
           
         }
         
@@ -121,8 +136,14 @@
           },false);
         }
         
+        WobbleSegment.combine = function(s1, s2){
+          console.log(s1, s2)
+          s1.enabled = false;
+          s2.enabled = false;
+        }
+        
         //it's not really a circle... it's a Sircle!
-        var Sircle = function(paper, x, y, r){
+        var Sircle = function(x, y, r){
           var _sircle = this;
           var diamater = r*2,
               diamater_25 = diamater*.25,
@@ -175,8 +196,8 @@
           , data);
           this.path = paper.path(pathString).attr({
             fill: "#bada55",
-            stroke: "#000",
-            "stroke-width": 5
+            //stroke: "#000",
+            //"stroke-width": 5
           });
           
           var movePoint = this.path.node.pathSegList.getItem(0);
@@ -184,71 +205,17 @@
             movePoint.x = x;
             movePoint.y = y;
           }
-          var segments = {
-            move: this.path.node.pathSegList.getItem(0),
-            top: this.path.node.pathSegList.getItem(1),
-            right: this.path.node.pathSegList.getItem(2),
-            bottom: this.path.node.pathSegList.getItem(3),
-            left: this.path.node.pathSegList.getItem(4)
+          this.segments = {
+            //move: this.path.node.pathSegList.getItem(0),
+            top: new WobbleSegment(this.path.node.pathSegList.getItem(1)),
+            right: new WobbleSegment(this.path.node.pathSegList.getItem(2)),
+            bottom: new WobbleSegment(this.path.node.pathSegList.getItem(3)),
+            left: new WobbleSegment(this.path.node.pathSegList.getItem(4))
           }
-          
-          var top = new WobbleSegment(segments.top),
-              right = new WobbleSegment(segments.right),
-              bottom = new WobbleSegment(segments.bottom),
-              left = new WobbleSegment(segments.left);
-              
-          //left.position.addSegment(segments.move);
-          //left.position.disable();
-          //console.log(left.position);
-          
-          
-          function setSegValues(label){
-            var data_obj = data[label];
-            var svg_obj = segments[label];
-            if (!data_obj.inactive) {
-              svg_obj.x = data_obj.x;
-              svg_obj.y = data_obj.y;
-              svg_obj.x1 = data_obj.x1 + data_obj.x1o||0;
-              svg_obj.y1 = data_obj.y1 + data_obj.y1o||0;
-              svg_obj.x2 = data_obj.x2 + data_obj.x2o||0;
-              svg_obj.y2 = data_obj.y2 + data_obj.y2o||0;
-            }
-          }
-          
-          var wobble = 1, wobblex2 = wobble*2;
-          function recalculateOffset(obj, label) {
-            if (!obj.inactive) {
-              var offset = (obj[label+"o"]||0);
-              var momentum = (obj[label+"m"]||0);
-              var newMove = momentum/1.5 + Math.random()*wobblex2-wobble - offset/10;
-              obj[label+"m"] = newMove;
-              obj[label+"o"] = offset + newMove;
-            }
-          }
-          function morphSegValues(label) {
-            var obj = data[label];
-            recalculateOffset(obj, "x1");
-            recalculateOffset(obj, "y1");
-            recalculateOffset(obj, "x2");
-            recalculateOffset(obj, "y2");
-            setSegValues(label);
-          }
-          
-          this.morph = function(){
-            data.right.inactive = true;
-            morphSegValues("top");
-            morphSegValues("right");
-            morphSegValues("bottom");
-            morphSegValues("left");
-          }
-          
-          document.addEventListener("Render",function(){
-            //_sircle.morph();
-          },false);
+          window.test = this.path.node.pathSegList.getItem(1);
         }
         
-        window.s = new Sircle(paper, 200, 100, 50);
-        window.s2 = new Sircle(paper, 300, 100, 50);
+        window.n = new Number(36);
         
         (function animloop(){
           requestAnimFrame(animloop);

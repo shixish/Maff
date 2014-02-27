@@ -14,23 +14,116 @@
     </style>
     <script src="js/snap.svg-min.js"></script>
     <script>
-      
-      
       var Point = function(){
         
       }
       
       var Maff = function(){
+        var _maff = this;
         var paper = Snap("100%", "100%");
         this.paper = paper;
+        var renderEvent = new CustomEvent("Render", {"detail":{"hazcheeseburger":true}});
         
         this.Number = function(paper, x, y, number){
           this.group = paper.group();
           
         }
         
+        var wobbleAmount = 1, wobbleAmountx2 = wobbleAmount*2;
+        var WobblePoint = function(segment, id){
+          var svgPoint = function(segment, id) {
+            var segment = segment;
+            var id = id||"";
+            this.setPos = function(x, y){
+              segment["x"+id] = x;
+              segment["y"+id] = y;
+            }
+          }
+          
+          var _point = this;
+          var enabled = false;
+          id = id||""
+          var segments = [new svgPoint(segment, id)];
+          var position = {
+            x: segment["x"+id],
+            y: segment["y"+id],
+          };
+          var offset = {
+            x: 0,
+            y: 0,
+          };
+          var momentum = {
+            x: 0,
+            y: 0,
+          };
+          
+          //this.enable = function(){
+          //  if (!enabled) {
+          //    enabled = true;
+          //    document.addEventListener("Render",function(e){
+          //      if (enabled) {
+          //        _point.wobble();
+          //      }/*else{
+          //        document.removeEventListener('Render', e, false);
+          //      }*/
+          //    }, false);
+          //  }
+          //}
+          //this.enable();
+          //
+          //this.disable = function(){
+          //  if (enabled) {
+          //    enabled = false;
+          //  }
+          //}
+          
+          var calculatePosition = function(label){
+            var m = momentum[label];
+            var o = offset[label];
+            //console.log(m, o);
+            momentum[label] = m = m/1.5 + Math.random()*wobbleAmountx2-wobbleAmount - o/10;
+            offset[label] = o = o + m;
+            
+            return position[label] + o;
+          }
+          
+          this.wobble = function(){
+            var x = calculatePosition("x");
+            var y = calculatePosition("y");
+            for (var s in segments) {
+              segments[s].setPos(x, y);
+            }
+          }
+          
+          this.addSegment = function(segment, id){
+            segments.push(new svgPoint(segment, id));
+          }
+          
+          this.toString = function(){
+            return x+","+y;
+          }
+        }
+        
+        var WobbleSegment = function(segment){
+          var _segment = this;
+          var segment = segment;
+          this.enabled = true;
+          this.position = new WobblePoint(segment);
+          this.cPoint1 = new WobblePoint(segment, 1);
+          this.cPoint2 = new WobblePoint(segment, 2);
+          
+          document.addEventListener("Render",function(){
+            if (_segment.enabled) {
+              //_segment.position.wobble(); //can't do this because then the ends don't match up.
+              _segment.cPoint1.wobble();
+              _segment.cPoint2.wobble();
+            }
+          },false);
+        }
+        
         //it's not really a circle... it's a Sircle!
         var Sircle = function(paper, x, y, r){
+          var _sircle = this;
           var diamater = r*2,
               diamater_25 = diamater*.25,
               diamater_50 = diamater*.50,
@@ -85,53 +178,85 @@
             stroke: "#000",
             "stroke-width": 5
           });
-          delete pathString, data;
           
           var movePoint = this.path.node.pathSegList.getItem(0);
           this.move = function(x, y) {
             movePoint.x = x;
             movePoint.y = y;
           }
-          var top = this.path.node.pathSegList.getItem(1),
-              right = this.path.node.pathSegList.getItem(2),
-              bottom = this.path.node.pathSegList.getItem(3),
-              left = this.path.node.pathSegList.getItem(4);
+          var segments = {
+            move: this.path.node.pathSegList.getItem(0),
+            top: this.path.node.pathSegList.getItem(1),
+            right: this.path.node.pathSegList.getItem(2),
+            bottom: this.path.node.pathSegList.getItem(3),
+            left: this.path.node.pathSegList.getItem(4)
+          }
           
-          function setSegValues(data_obj, svg_obj){
-            svg_obj.x = data_obj.x;
-            svg_obj.y = data_obj.y;
-            svg_obj.x1 = data_obj.x1 + data_obj.x1o;
-            svg_obj.y1 = data_obj.y1 + data_obj.y1o;
-            svg_obj.x2 = data_obj.x2 + data_obj.x2o;
-            svg_obj.y2 = data_obj.y2 + data_obj.y2o;
+          var top = new WobbleSegment(segments.top),
+              right = new WobbleSegment(segments.right),
+              bottom = new WobbleSegment(segments.bottom),
+              left = new WobbleSegment(segments.left);
+              
+          //left.position.addSegment(segments.move);
+          //left.position.disable();
+          //console.log(left.position);
+          
+          
+          function setSegValues(label){
+            var data_obj = data[label];
+            var svg_obj = segments[label];
+            if (!data_obj.inactive) {
+              svg_obj.x = data_obj.x;
+              svg_obj.y = data_obj.y;
+              svg_obj.x1 = data_obj.x1 + data_obj.x1o||0;
+              svg_obj.y1 = data_obj.y1 + data_obj.y1o||0;
+              svg_obj.x2 = data_obj.x2 + data_obj.x2o||0;
+              svg_obj.y2 = data_obj.y2 + data_obj.y2o||0;
+            }
           }
           
           var wobble = 1, wobblex2 = wobble*2;
           function recalculateOffset(obj, label) {
-            var offset = (obj[label+"o"]||0);
-            var momentum = (obj[label+"m"]||0);
-            var newMove = momentum/1.5 + Math.random()*wobblex2-wobble - offset/10;
-            obj[label+"m"] = newMove;
-            obj[label+"o"] = offset + newMove;
+            if (!obj.inactive) {
+              var offset = (obj[label+"o"]||0);
+              var momentum = (obj[label+"m"]||0);
+              var newMove = momentum/1.5 + Math.random()*wobblex2-wobble - offset/10;
+              obj[label+"m"] = newMove;
+              obj[label+"o"] = offset + newMove;
+            }
           }
-          function morphSegValues(obj) {
+          function morphSegValues(label) {
+            var obj = data[label];
             recalculateOffset(obj, "x1");
             recalculateOffset(obj, "y1");
             recalculateOffset(obj, "x2");
             recalculateOffset(obj, "y2");
-            return obj;
+            setSegValues(label);
           }
           
           this.morph = function(){
-            setSegValues(morphSegValues(data.top), top);
-            setSegValues(morphSegValues(data.right), right);
-            setSegValues(morphSegValues(data.bottom), bottom);
-            setSegValues(morphSegValues(data.left), left);
+            data.right.inactive = true;
+            morphSegValues("top");
+            morphSegValues("right");
+            morphSegValues("bottom");
+            morphSegValues("left");
           }
+          
+          document.addEventListener("Render",function(){
+            //_sircle.morph();
+          },false);
         }
+        
+        window.s = new Sircle(paper, 200, 100, 50);
+        window.s2 = new Sircle(paper, 300, 100, 50);
+        
+        (function animloop(){
+          requestAnimFrame(animloop);
+          document.dispatchEvent(renderEvent);
+        })();
       }
       
-      Maff.prototype.requestAnimFrame = (function(){
+      window.requestAnimFrame = (function(){
         return  window.requestAnimationFrame       ||
                 window.webkitRequestAnimationFrame ||
                 window.mozRequestAnimationFrame    ||
@@ -142,33 +267,7 @@
       
       window.onload = function () {
         var maff = new Maff();
-        window.paper = maff.paper;        
-        var length = 100, length_25 = length*.25, length_50 = length*.5, length_75 = length*.75;
-        var p = paper.path("M400,200"
-          +"c"+length_25+",-"+length_25+" "+length_75+",-"+length_25+" "+length+",0"
-          +"c"+length_25+","+length_25+" "+length_25+","+length_75+" 0,"+length
-          +"c-"+length_25+","+length_25+" -"+length_75+","+length_25+" -"+length+",0"
-          +"c-"+length_25+",-"+length_25+" -"+length_25+",-"+length_75+" 0,-"+length
-          +"Z"
-        ).attr({
-          fill: "#bada55",
-          stroke: "#000",
-          "stroke-width": 5
-        });
-        window.p = p;
-        
-        window.s = new Sircle(paper, 600, 200, 50);
-        window.s2 = new Sircle(paper, 600, 300, 50);
-        function render(){
-          s.morph();
-          s2.morph();
-        }
-        
-        (function animloop(){
-          requestAnimFrame(animloop);
-          render();
-        })();
-    };
+      }
     </script>
   </head>
   <body></body>

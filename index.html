@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Snap</title>
+    <style>
+      body, html{
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+      }
+    </style>
+    <script src="js/snap.svg-min.js"></script>
+    <script>
+      
+      
+      var Point = function(){
+        
+      }
+      
+      var Maff = function(){
+        var paper = Snap("100%", "100%");
+        this.paper = paper;
+        
+        this.Number = function(paper, x, y, number){
+          this.group = paper.group();
+          
+        }
+        
+        //it's not really a circle... it's a Sircle!
+        var Sircle = function(paper, x, y, r){
+          var diamater = r*2,
+              diamater_25 = diamater*.25,
+              diamater_50 = diamater*.50,
+              diamater_75 = diamater*.75;
+          var data = {
+            x: x,
+            y: y,
+            top:{
+              x: diamater,
+              y: 0,
+              x1: diamater_25,
+              y1: -diamater_25,
+              x2: diamater_75,
+              y2: -diamater_25,
+            },
+            right:{
+              x: 0,
+              y: diamater,
+              x1: diamater_25,
+              y1: diamater_25,
+              x2: diamater_25,
+              y2: diamater_75,
+            },
+            bottom:{
+              x: -diamater,
+              y: 0,
+              x1: -diamater_25,
+              y1: diamater_25,
+              x2: -diamater_75,
+              y2: diamater_25,
+            },
+            left:{
+              x: 0,
+              y: -diamater,
+              x1: -diamater_25,
+              y1: -diamater_25,
+              x2: -diamater_25,
+              y2: -diamater_75,
+            },
+          };
+          
+          var pathString = Snap.format(
+            "M{x},{y}"
+            +"c{top.x1},{top.y1} {top.x2},{top.y2} {top.x},{top.y}"
+            +"c{right.x1},{right.y1} {right.x2},{right.y2} {right.x},{right.y}"
+            +"c{bottom.x1},{bottom.y1} {bottom.x2},{bottom.y2} {bottom.x},{bottom.y}"
+            +"c{left.x1},{left.y1} {left.x2},{left.y2} {left.x},{left.y}"
+            +"Z"
+          , data);
+          this.path = paper.path(pathString).attr({
+            fill: "#bada55",
+            stroke: "#000",
+            "stroke-width": 5
+          });
+          delete pathString, data;
+          
+          var movePoint = this.path.node.pathSegList.getItem(0);
+          this.move = function(x, y) {
+            movePoint.x = x;
+            movePoint.y = y;
+          }
+          var top = this.path.node.pathSegList.getItem(1),
+              right = this.path.node.pathSegList.getItem(2),
+              bottom = this.path.node.pathSegList.getItem(3),
+              left = this.path.node.pathSegList.getItem(4);
+          
+          function setSegValues(data_obj, svg_obj){
+            svg_obj.x = data_obj.x;
+            svg_obj.y = data_obj.y;
+            svg_obj.x1 = data_obj.x1 + data_obj.x1o;
+            svg_obj.y1 = data_obj.y1 + data_obj.y1o;
+            svg_obj.x2 = data_obj.x2 + data_obj.x2o;
+            svg_obj.y2 = data_obj.y2 + data_obj.y2o;
+          }
+          
+          var wobble = 1, wobblex2 = wobble*2;
+          function recalculateOffset(obj, label) {
+            var offset = (obj[label+"o"]||0);
+            var momentum = (obj[label+"m"]||0);
+            var newMove = momentum/1.5 + Math.random()*wobblex2-wobble - offset/10;
+            obj[label+"m"] = newMove;
+            obj[label+"o"] = offset + newMove;
+          }
+          function morphSegValues(obj) {
+            recalculateOffset(obj, "x1");
+            recalculateOffset(obj, "y1");
+            recalculateOffset(obj, "x2");
+            recalculateOffset(obj, "y2");
+            return obj;
+          }
+          
+          this.morph = function(){
+            setSegValues(morphSegValues(data.top), top);
+            setSegValues(morphSegValues(data.right), right);
+            setSegValues(morphSegValues(data.bottom), bottom);
+            setSegValues(morphSegValues(data.left), left);
+          }
+        }
+      }
+      
+      Maff.prototype.requestAnimFrame = (function(){
+        return  window.requestAnimationFrame       ||
+                window.webkitRequestAnimationFrame ||
+                window.mozRequestAnimationFrame    ||
+                function( callback ){
+                  window.setTimeout(callback, 1000 / 60);
+                };
+      })();      
+      
+      window.onload = function () {
+        var maff = new Maff();
+        window.paper = maff.paper;        
+        var length = 100, length_25 = length*.25, length_50 = length*.5, length_75 = length*.75;
+        var p = paper.path("M400,200"
+          +"c"+length_25+",-"+length_25+" "+length_75+",-"+length_25+" "+length+",0"
+          +"c"+length_25+","+length_25+" "+length_25+","+length_75+" 0,"+length
+          +"c-"+length_25+","+length_25+" -"+length_75+","+length_25+" -"+length+",0"
+          +"c-"+length_25+",-"+length_25+" -"+length_25+",-"+length_75+" 0,-"+length
+          +"Z"
+        ).attr({
+          fill: "#bada55",
+          stroke: "#000",
+          "stroke-width": 5
+        });
+        window.p = p;
+        
+        window.s = new Sircle(paper, 600, 200, 50);
+        window.s2 = new Sircle(paper, 600, 300, 50);
+        function render(){
+          s.morph();
+          s2.morph();
+        }
+        
+        (function animloop(){
+          requestAnimFrame(animloop);
+          render();
+        })();
+    };
+    </script>
+  </head>
+  <body></body>
+</html>

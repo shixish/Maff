@@ -24,39 +24,53 @@
         this.paper = paper;
         var renderEvent = new CustomEvent("Render", {"detail":{"hazcheeseburger":true}});
         
-        var Number = this.Number = function(number){
+        var Number = _maff.Number = function(number){
           var _number = this;
           //this.group = paper.group();
-          var sircles = [];
-          var group = paper.group();
-          var position = {
+          this.num = number;
+          this.sircles = [];
+          this.group = paper.group();
+          this.position = {
             x: 100,
             y: 100
           };
           var radius = 15, width = radius*2;
-          var rows = Math.ceil(Math.sqrt(number));
+          var rows = Math.ceil(Math.sqrt(_number.num));
           var offset = rows*radius;
           var quarterPi = Math.PI/4;
-          for (var i = 0; i < number; i++) {
-            var x = (i%rows)*width - offset;
-            var y = Math.floor(i/rows)*width - offset;
-            //var x = position.x + Math.sin((2*i+1)*quarterPi)*radius*Math.floor(i/4);
-            //var y = position.y + Math.cos((2*i+1)*quarterPi)*radius*Math.floor(i/4);
-            var s = new Sircle(x, y, radius);
-            sircles.push(s);
-            group.add(s.path);
+          var getPos = function(i){
+            return {
+              x: (i%rows)*width - offset,
+              y: Math.floor(i/rows)*width - offset
+            };
+          }
+          
+          for (var i = 0; i < _number.num; i++) {
+            var pos = getPos(i);
+            var s = new Sircle(pos.x, pos.y, radius);
+            _number.sircles.push(s);
+            _number.group.add(s.path);
+          }
+          
+          var repositionSircles = function (){
+            rows = Math.ceil(Math.sqrt(_number.num));
+            offset = rows*radius;
+            for (var i = 0; i < _number.num; i++) {
+              var pos = getPos(i);
+              _number.sircles[i].move(pos.x, pos.y);
+            }
           }
           
           var resetPos = function(){
             var t = new Snap.Matrix();
-            t.translate(position["x"], position["y"]);
-            group.transform(t);
+            t.translate(_number.position.x, _number.position.y);
+            _number.group.transform(t);
           }
           resetPos();
           
           this.setPos = function(x, y){
-            position["x"] = x;
-            position["y"] = y;
+            _number.position.x = x;
+            _number.position.y = y;
             resetPos();
             return _number;
           }
@@ -68,24 +82,59 @@
           //  t.rotate(rotation++);
           //  group.transform(t);
           //},false);
-        }
-        
-        var wobbleAmount = .5, wobbleAmountx2 = wobbleAmount*2;
-        var WobblePoint = function(segment, id){
-          var svgPoint = function(segment, id) {
-            var segment = segment;
-            var id = id||"";
-            this.setPos = function(x, y){
-              segment["x"+id] = x;
-              segment["y"+id] = y;
+          
+          this.add = function(_number2){
+            _number.num += _number2.num;
+            for (var s in _number2.sircles) {
+              var sircle = _number2.sircles[s];
+              //sircle.movePoint.x += _number2.position.x-_number.position.x;
+              //sircle.movePoint.x += _number2.position.y-_number.position.y;
+              sircle.shift(_number2.position.x-_number.position.x, _number2.position.y-_number.position.y);
+              _number.sircles.push(sircle);
+              _number.group.add(sircle.path);
             }
+            _number2.num = 0;
+            delete _number2.sircles;
+            delete _number2.group;
+            repositionSircles();
+            return _number;
           }
           
-          var _point = this;
+          this.subtract = function(_number2){
+            _number.num -= _number2.num;
+            for (var s in _number2.sircles) {
+              var sircle = _number2.sircles[s];
+              //sircle.movePoint.x += _number2.position.x-_number.position.x;
+              //sircle.movePoint.y += _number2.position.y-_number.position.y;
+              sircle.shift(_number2.position.x-_number.position.x, _number2.position.y-_number.position.y);
+              _number.sircles.pop();
+              _number.group.add(sircle.path);
+            }
+            delete _number2;
+            repositionSircles();
+            return _number;
+          }
+        }
+        
+        var WobblePoint = function(segment, id, wobbleAmount){
+          var wobbleAmount = wobbleAmount||.5, wobbleAmountx2 = wobbleAmount*2;
+          
+          //var svgPoint = function(segment, id) {
+          //  var segment = segment;
+          //  var id = id||"";
+          //  this.setPos = function(x, y){
+          //    segment["x"+id] = x;
+          //    segment["y"+id] = y;
+          //  }
+          //}
+          
+          var _this = this;
           var enabled = false;
-          id = id||""
-          var segments = [new svgPoint(segment, id)];
-          var position = {
+          var id = id||"";
+          var segment = segment;
+          //var segments = [new svgPoint(segment, id)];
+          
+          var position = {//This stores the original, unaltered position value.
             x: segment["x"+id],
             y: segment["y"+id],
           };
@@ -98,26 +147,6 @@
             y: 0,
           };
           
-          //this.enable = function(){
-          //  if (!enabled) {
-          //    enabled = true;
-          //    document.addEventListener("Render",function(e){
-          //      if (enabled) {
-          //        _point.wobble();
-          //      }/*else{
-          //        document.removeEventListener('Render', e, false);
-          //      }*/
-          //    }, false);
-          //  }
-          //}
-          //this.enable();
-          //
-          //this.disable = function(){
-          //  if (enabled) {
-          //    enabled = false;
-          //  }
-          //}
-          
           var calculatePosition = function(label){
             var m = momentum[label];
             var o = offset[label];
@@ -128,46 +157,97 @@
             return position[label] + o;
           }
           
+          this.setPos = function(x, y){
+            position.x = x;
+            position.y = y;
+            segment["x"+id] = x;
+            segment["y"+id] = y;
+            //for (var s in segments) {
+            //  segments[s].setPos(x, y);
+            //}
+          }
+          
+          this.shift = function(xA, yA){
+            position.x += xA;
+            position.y += yA;
+            segment["x"+id] = position.x;
+            segment["y"+id] = position.y;
+          }
+          
           this.wobble = function(){
             var x = calculatePosition("x");
             var y = calculatePosition("y");
-            for (var s in segments) {
-              segments[s].setPos(x, y);
-            }
+            segment["x"+id] = x;
+            segment["y"+id] = y;
+            //for (var s in segments) {
+            //  segments[s].setPos(x, y);
+            //}
           }
           
-          this.addSegment = function(segment, id){
-            segments.push(new svgPoint(segment, id));
-            return _point;
-          }
+          //this.addSegment = function(segment, id){
+          //  segments.push(new svgPoint(segment, id));
+          //  return _this;
+          //}
           
           this.toString = function(){
             return x+","+y;
           }
         }
         
-        var WobbleSegment = function(segment){
-          var _segment = this;
+        var WobbleMover = function(segment, wobbleAmount){
+          var _this = this;
           var segment = segment;
+          this.point = new WobblePoint(segment, "", wobbleAmount);
           this.enabled = true;
-          this.position = new WobblePoint(segment);
-          this.cPoint1 = new WobblePoint(segment, 1);
-          this.cPoint2 = new WobblePoint(segment, 2);
+          var position = {
+            x: segment.x,
+            y: segment.y
+          }
+          
+          var moving = true;
+          this.move = function(x, y) {//transition there
+            position.x = x;
+            position.y = y;
+            moving = true;
+          }
+          
+          this.shift = function(xA, yA){//move there immediately
+            _this.point.shift(xA, yA);
+          }
           
           document.addEventListener("Render",function(){
-            if (_segment.enabled) {
-              //_segment.position.wobble(); //can't do this because then the ends don't match up.
-              _segment.cPoint1.wobble();
-              _segment.cPoint2.wobble();
+            if (moving) {
+              var dx = position.x-segment.x;
+              var dy = position.y-segment.y;
+              if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+                _this.point.setPos(segment.x + dx/10, segment.y + dy/10);
+              }else{
+                _this.point.setPos(position.x, position.y);
+                moving = false;
+              }
+            }else if (_this.enabled) {
+              _this.point.wobble();
             }
           },false);
         }
         
-        //WobbleSegment.combine = function(s1, s2){
-        //  console.log(s1, s2)
-        //  s1.enabled = false;
-        //  s2.enabled = false;
-        //}
+        var WobbleSegment = function(segment, wobbleAmount){
+          var _this = this;
+          var segment = segment;
+          this.enabled = true;
+          //this.position = new WobblePoint(segment);
+          this.cPoint1 = new WobblePoint(segment, 1, wobbleAmount);
+          this.cPoint2 = new WobblePoint(segment, 2), wobbleAmount;
+          
+          document.addEventListener("Render",function(){
+            if (_this.enabled) {
+              //_this.position.wobble(); //can't do this because then the ends don't match up.
+              _this.cPoint1.wobble();
+              _this.cPoint2.wobble();
+            }
+          },false);
+        }
+        
         
         //it's not really a circle... it's a Sircle!
         var Sircle = function(x, y, r){
@@ -227,19 +307,71 @@
             "stroke-width": 3
           });
           
-          var movePoint = this.path.node.pathSegList.getItem(0);
-          this.move = function(x, y) {
-            movePoint.x = x;
-            movePoint.y = y;
-          }
+          
+          var wobbleAmount = .5;
+          
+          //var movePoint = this.path.node.pathSegList.getItem(0);
+          var mover = new WobbleMover(this.path.node.pathSegList.getItem(0), wobbleAmount/2);
           this.segments = {
-            //move: this.path.node.pathSegList.getItem(0),
-            top: new WobbleSegment(this.path.node.pathSegList.getItem(1)),
-            right: new WobbleSegment(this.path.node.pathSegList.getItem(2)),
-            bottom: new WobbleSegment(this.path.node.pathSegList.getItem(3)),
-            left: new WobbleSegment(this.path.node.pathSegList.getItem(4))
+            //move: new WobbleMover(this.path.node.pathSegList.getItem(0), wobbleAmount/2),
+            top: new WobbleSegment(this.path.node.pathSegList.getItem(1), wobbleAmount),
+            right: new WobbleSegment(this.path.node.pathSegList.getItem(2), wobbleAmount),
+            bottom: new WobbleSegment(this.path.node.pathSegList.getItem(3), wobbleAmount),
+            left: new WobbleSegment(this.path.node.pathSegList.getItem(4), wobbleAmount)
           }
-          window.test = this.path.node.pathSegList.getItem(1);
+          
+          this.move = function(x, y){
+            mover.move(x, y);
+          }
+          
+          this.setPos = function(x, y){
+            mover.setPos(x, y);
+          }
+          
+          //used to make quick adjustments when merging occurs
+          this.shift = function(xA, yA){
+            mover.shift(xA, yA);
+          }
+          
+          
+          
+          
+          //window.test = this.path.node.pathSegList.getItem(1);
+          //var moving = true;
+          //this.move = function(x, y) {//transition there
+          //  data.x = x;
+          //  data.y = y;
+          //  moving = true;
+          //}
+          
+          //this.setPos = function(x, y){//move there immediately
+          //  movePoint.x = x;
+          //  movePoint.y = y;
+          //}
+          //
+          //this.setPos = function(x, y){//move there immediately
+          //  movePoint.x = x;
+          //  movePoint.y = y;
+          //}
+          //
+          //var movePoint = this.path.node.pathSegList.getItem(0);
+          //this.movePoint = movePoint;
+          //document.addEventListener("Render",function(){
+          //  //console.log("rendering");
+          //  if (moving) {
+          //    //console.log("moving");
+          //    var dx = data.x-movePoint.x;
+          //    var dy = data.y-movePoint.y;
+          //    if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+          //      movePoint.x += dx/10;
+          //      movePoint.y += dy/10;
+          //    }else{
+          //      movePoint.x = data.x;
+          //      movePoint.y = data.y;
+          //      moving = false;
+          //    }
+          //  }
+          //},false);
         }
         
         window.n1 = new Number(7);
@@ -261,7 +393,7 @@
       })();
       
       window.onload = function () {
-        var maff = new Maff();
+        window.maff = new Maff();
       }
     </script>
   </head>

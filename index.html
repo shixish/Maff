@@ -25,26 +25,52 @@
         var renderEvent = new CustomEvent("Render", {"detail":{"hazcheeseburger":true}});
         
         var Number = this.Number = function(number){
+          var _number = this;
           //this.group = paper.group();
           var sircles = [];
+          var group = paper.group();
           var position = {
             x: 100,
             y: 100
           };
-          var radius = 50, width = radius*2;
+          var radius = 15, width = radius*2;
           var rows = Math.ceil(Math.sqrt(number));
+          var offset = rows*radius;
           var quarterPi = Math.PI/4;
           for (var i = 0; i < number; i++) {
-            var x = position.x + (i%rows)*width;
-            var y = position.y + Math.floor(i/rows)*width;
+            var x = (i%rows)*width - offset;
+            var y = Math.floor(i/rows)*width - offset;
             //var x = position.x + Math.sin((2*i+1)*quarterPi)*radius*Math.floor(i/4);
             //var y = position.y + Math.cos((2*i+1)*quarterPi)*radius*Math.floor(i/4);
-            sircles.push(new Sircle(x, y, radius));
+            var s = new Sircle(x, y, radius);
+            sircles.push(s);
+            group.add(s.path);
           }
           
+          var resetPos = function(){
+            var t = new Snap.Matrix();
+            t.translate(position["x"], position["y"]);
+            group.transform(t);
+          }
+          resetPos();
+          
+          this.setPos = function(x, y){
+            position["x"] = x;
+            position["y"] = y;
+            resetPos();
+            return _number;
+          }
+          
+          //var rotation = 0;
+          //document.addEventListener("Render",function(){
+          //  var t = new Snap.Matrix();
+          //  t.translate(position["x"], position["y"]);
+          //  t.rotate(rotation++);
+          //  group.transform(t);
+          //},false);
         }
         
-        var wobbleAmount = 1, wobbleAmountx2 = wobbleAmount*2;
+        var wobbleAmount = .5, wobbleAmountx2 = wobbleAmount*2;
         var WobblePoint = function(segment, id){
           var svgPoint = function(segment, id) {
             var segment = segment;
@@ -112,6 +138,7 @@
           
           this.addSegment = function(segment, id){
             segments.push(new svgPoint(segment, id));
+            return _point;
           }
           
           this.toString = function(){
@@ -136,11 +163,11 @@
           },false);
         }
         
-        WobbleSegment.combine = function(s1, s2){
-          console.log(s1, s2)
-          s1.enabled = false;
-          s2.enabled = false;
-        }
+        //WobbleSegment.combine = function(s1, s2){
+        //  console.log(s1, s2)
+        //  s1.enabled = false;
+        //  s2.enabled = false;
+        //}
         
         //it's not really a circle... it's a Sircle!
         var Sircle = function(x, y, r){
@@ -196,8 +223,8 @@
           , data);
           this.path = paper.path(pathString).attr({
             fill: "#bada55",
-            //stroke: "#000",
-            //"stroke-width": 5
+            stroke: "#000",
+            "stroke-width": 3
           });
           
           var movePoint = this.path.node.pathSegList.getItem(0);
@@ -215,7 +242,8 @@
           window.test = this.path.node.pathSegList.getItem(1);
         }
         
-        window.n = new Number(36);
+        window.n1 = new Number(7);
+        window.n2 = new Number(14).setPos(400,100);
         
         (function animloop(){
           requestAnimFrame(animloop);
@@ -230,7 +258,7 @@
                 function( callback ){
                   window.setTimeout(callback, 1000 / 60);
                 };
-      })();      
+      })();
       
       window.onload = function () {
         var maff = new Maff();
